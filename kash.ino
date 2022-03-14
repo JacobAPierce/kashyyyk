@@ -1,63 +1,96 @@
-/*
-Once uploaded, open the serial monitor, set the baud rate to 9600 and append "Carriage return"
-The code allows the user to observe real time pH readings as well as calibrate the sensor.
-One, two or three-point calibration can be done.
-*/
+#include "LiquidCrystal.h" //header file for liquid crystal display (lcd)
+#include "ph_grav.h" //header file for Atlas Scientific gravity pH sensor
 
-#include "ph_grav.h"                                  //header file for Atlas Scientific gravity pH sensor
-#include "LiquidCrystal.h"                            //header file for liquid crystal display (lcd)
-
-String inputstring = "";                              //a string to hold incoming data from the PC
-boolean input_string_complete = false;                //a flag to indicate have we received all the data from the PC
-char inputstring_array[10];                           //a char array needed for string parsing
-Gravity_pH pH = A0;                                   //assign analog pin A0 of Arduino to class Gravity_pH. connect output of pH sensor to pin A0
-LiquidCrystal lcd(2, 3, 4, 5, 6, 7);               //make a variable pH_lcd and assign arduino digital pins to lcd pins (2 -> RS, 3 -> E, 4 to 7 -> D4 to D7)
+//Arduino pin assignment (Arduino Pin:Module Pin)
+int redPin=11;
+int greenPin=10;
+int bluePin=9;
+Gravity_pH pH = A0; //A0:Po
+LiquidCrystal lcd(2, 3, 4, 5, 6, 7); //(2:RS, 3:E, 4:D4, 5:D5, 6:D6, 7:D7)
 
 void setup() {
-  Serial.begin(9600);                                 //enable serial port
-  lcd.begin(16, 2);                                //start lcd interface and define lcd size (20 columns and 4 rows)
-  lcd.setCursor(0,0);                             //place cursor on screen at column 6, row 2
-  lcd.print("pH Value:");                         //display "pH Reading" 
-//  if (pH.begin()) { Serial.println("Loaded EEPROM");} 
-//  Serial.println(F("Use commands \"CAL,4\", \"CAL,7\", and \"CAL,10\" to calibrate the circuit to those respective values"));
-//  Serial.println(F("Use command \"CAL,CLEAR\" to clear the calibration"));
- }
-
-void serialEvent() {                                  //if the hardware serial port_0 receives a char
-//  inputstring = Serial.readStringUntil(13);           //read the string until we see a <CR>
-//  input_string_complete = true;                       //set the flag used to tell if we have received a completed string from the PC
+  int x = 0;
+  Serial.begin(9600); //enable serial port
+  pinMode(redPin,OUTPUT);
+  pinMode(greenPin,OUTPUT);
+  pinMode(bluePin,OUTPUT);
+  while (x < 15) { //blink to notify of setup
+    x++;
+    phLed('C');
+    delay(200);
+    phLed('W');
+    delay(200);
+  }
+  lcd.begin(16, 2); //start lcd interface and define lcd size (20 columns and 4 rows)
+  lcd.setCursor(0,0); //place cursor on screen at column 6, row 2
+  lcd.print("pH Value:    000"); //display "pH Reading" 
+  delay(1000);
 }
 
 void loop() {
-//  if (input_string_complete == true) {                //check if data received
-//    inputstring.toCharArray(inputstring_array, 30);   //convert the string to a char array
-//    parse_cmd(inputstring_array);                     //send data to pars_cmd function
-//    input_string_complete = false;                    //reset the flag used to tell if we have received a completed string from the PC
-//    inputstring = "";                                 //clear the string
-//  }
-//  Serial.println(pH.read_ph());                       //output pH reading to serial monitor
-  lcd.setCursor(12, 0);                               //place cursor on screen at column 9, row 3
-  lcd.print(pH.read_ph()+ 11.5);                      //output pH to lcd
+  printPh();
   delay(1000);
 }
-/*
-void parse_cmd(char* string) {                         //For calling calibration functions
-  strupr(string);                                      //convert input string to uppercase
 
-  if (strcmp(string, "CAL,4") == 0) {                  //compare user input string with CAL,4 and if they match, proceed
-    pH.cal_low();                                      //call function for low point calibration
-    Serial.println("LOW CALIBRATED");
+void printPh() {
+  float phOff = 14.61;
+  float phVal = pH.read_ph() + phOff;
+  if (phVal < 5){
+    phLed('R');
+  } else if (phVal > 6) {
+    phLed('B');
+  } else {
+    phLed('X');
   }
-  else if (strcmp(string, "CAL,7") == 0) {             //compare user input string with CAL,7 and if they match, proceed
-    pH.cal_mid();                                      //call function for midpoint calibration
-    Serial.println("MID CALIBRATED");
+  lcd.setCursor(12,0);
+  lcd.print(phVal);
+}
+
+void phLed (char color) {
+  switch (color) {
+    case 'B':
+      analogWrite(redPin,0);
+      analogWrite(greenPin,0);
+      analogWrite(bluePin,255);
+      break;
+    case 'C':
+      analogWrite(redPin,0);
+      analogWrite(greenPin,255);
+      analogWrite(bluePin,255);
+      break;
+    case 'G':
+      analogWrite(redPin,0);
+      analogWrite(greenPin,255);
+      analogWrite(bluePin,0);
+      break;
+    case 'M':
+      analogWrite(redPin,255);
+      analogWrite(greenPin,0);
+      analogWrite(bluePin,255);
+      break;
+    case 'O':
+      analogWrite(redPin,255);
+      analogWrite(greenPin,55);
+      analogWrite(bluePin,0);
+      break;
+    case 'R':
+      analogWrite(redPin,255);
+      analogWrite(greenPin,0);
+      analogWrite(bluePin,0);
+      break;
+    case 'W':
+      analogWrite(redPin,255);
+      analogWrite(greenPin,255);
+      analogWrite(bluePin,255);
+      break;
+    case 'Y':
+      analogWrite(redPin,255);
+      analogWrite(greenPin,255);
+      analogWrite(bluePin,0);
+      break;
+    default:
+      analogWrite(redPin,LOW);
+      analogWrite(greenPin,LOW);
+      analogWrite(bluePin,LOW);
   }
-  else if (strcmp(string, "CAL,10") == 0) {            //compare user input string with CAL,10 and if they match, proceed
-    pH.cal_high();                                     //call function for highpoint calibration
-    Serial.println("HIGH CALIBRATED");
-  }
-  else if (strcmp(string, "CAL,CLEAR") == 0) {         //compare user input string with CAL,CLEAR and if they match, proceed
-    pH.cal_clear();                                    //call function for clearing calibration
-    Serial.println("CALIBRATION CLEARED");
-  }
-}*/
+}
